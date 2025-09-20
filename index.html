@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz: Polskie nazwy państw na świecie</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: #f6f7f9;
+        color: #222;
+      }
+
+      .app {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        width: 300px;
+        min-width: 260px;
+        max-width: 420px;
+        background: #ffffff;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar header {
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid #eef0f2;
+      }
+
+      .sidebar h1 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .controls button {
+        appearance: none;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .controls button.primary {
+        background: #2563eb;
+        color: #fff;
+        border-color: #2563eb;
+      }
+
+      .controls button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .list {
+        padding: 8px 12px 12px;
+        overflow: auto;
+      }
+
+      .list .search {
+        margin: 4px 0 10px;
+      }
+
+      .list input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+
+      .cities {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0;
+        max-height: calc(100vh - 210px);
+        overflow: auto;
+      }
+
+      .cities li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 4px;
+        border-radius: 6px;
+      }
+
+      .cities li:hover {
+        background: #f3f4f6;
+      }
+
+      .main {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        background: #e5e7eb;
+      }
+
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+
+      .hud {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 8px 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        font-size: 14px;
+        z-index: 500;
+      }
+
+      .hud .target {
+        font-weight: 600;
+      }
+
+      .toast {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(17,24,39,0.9);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        display: none;
+        z-index: 600;
+      }
+
+      .footer {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(255,255,255,0.85);
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        z-index: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <header>
+          <h1>Polskie nazwy państw na świecie</h1>
+          <div class="controls">
+            <button id="selectAll">Zaznacz wszystkie</button>
+            <button id="deselectAll">Odznacz wszystkie</button>
+            <button id="startBtn" class="primary">Start</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+        </header>
+        <div class="list">
+          <div class="search">
+            <input id="search" type="text" placeholder="Szukaj państwa..." />
+          </div>
+          <ul id="countryList" class="cities"></ul>
+        </div>
+      </aside>
+      <main class="main">
+        <div id="map"></div>
+        <div class="hud" id="hud" style="display:none;">
+          <div>Cel: <span class="target" id="targetName">—</span></div>
+          <div>Punkty: <span id="score">0</span></div>
+          <div>Postęp: <span id="progress">0/0</span></div>
+        </div>
+        <div class="toast" id="toast"></div>
+        <div class="footer">Warstwa: CartoDB Positron No Labels • Dane © OpenStreetMap</div>
+      </main>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      // --- Dane: państwa z pliku panstwa.txt ---
+      const COUNTRY_DATA = [
+        { name: 'Afganistan', lat: 33.9, lng: 67.7 },
+        { name: 'Albania', lat: 41.2, lng: 20.2 },
+        { name: 'Algieria', lat: 28.0, lng: 1.7 },
+        { name: 'Kenia', lat: 0.0, lng: 37.9 },
+        { name: 'Arabia Saudyjska', lat: 23.9, lng: 45.1 },
+        { name: 'Kiribati', lat: 1.9, lng: -157.4 },
+        { name: 'Kanada', lat: 56.1, lng: -106.3 },
+        { name: 'Katar', lat: 25.4, lng: 51.2 },
+        { name: 'Kazachstan', lat: 48.0, lng: 66.9 },
+        { name: 'Słowacja', lat: 48.7, lng: 19.7 },
+        { name: 'Somalia', lat: 5.2, lng: 46.2 },
+        { name: 'Stany Zjednoczone', lat: 39.8, lng: -98.6 },
+        { name: 'Syria', lat: 34.8, lng: 39.0 },
+        { name: 'Szwajcaria', lat: 46.8, lng: 8.2 },
+        { name: 'Argentyna', lat: -38.4, lng: -63.6 },
+        { name: 'Kolumbia', lat: 4.6, lng: -74.3 },
+        { name: 'Szwecja', lat: 60.1, lng: 18.6 },
+        { name: 'Australia', lat: -25.3, lng: 133.8 },
+        { name: 'Korea Południowa', lat: 36.5, lng: 127.9 },
+        { name: 'Tanzania', lat: -6.4, lng: 34.9 },
+        { name: 'Austria', lat: 47.6, lng: 13.8 },
+        { name: 'Korea Północna', lat: 40.3, lng: 127.5 },
+        { name: 'Tunezja', lat: 33.9, lng: 9.5 },
+        { name: 'Bangladesz', lat: 23.7, lng: 90.4 },
+        { name: 'Kostaryka', lat: 9.7, lng: -83.8 },
+        { name: 'Turcja', lat: 39.0, lng: 35.2 },
+        { name: 'Białoruś', lat: 53.7, lng: 27.9 },
+        { name: 'Kuba', lat: 21.5, lng: -77.8 },
+        { name: 'Ukraina', lat: 49.0, lng: 31.4 },
+        { name: 'Boliwia', lat: -16.3, lng: -63.6 },
+        { name: 'Liban', lat: 33.9, lng: 35.9 },
+        { name: 'Brazylia', lat: -14.2, lng: -51.9 },
+        { name: 'Bulgaria', lat: 42.7, lng: 25.5 },
+        { name: 'Chile', lat: -35.7, lng: -71.5 },
+        { name: 'Chiny', lat: 35.9, lng: 104.2 },
+        { name: 'Chorwacja', lat: 45.1, lng: 15.2 },
+        { name: 'Cypr', lat: 35.1, lng: 33.4 },
+        { name: 'Czad', lat: 15.5, lng: 18.7 },
+        { name: 'Czechy', lat: 49.8, lng: 15.5 },
+        { name: 'Dania', lat: 56.3, lng: 9.5 },
+        { name: 'Dominikana', lat: 18.7, lng: -70.2 },
+        { name: 'Egipt', lat: 26.8, lng: 30.8 },
+        { name: 'Ekwador', lat: -1.8, lng: -78.2 },
+        { name: 'Etiopia', lat: 9.1, lng: 40.5 },
+        { name: 'Liberia', lat: 6.4, lng: -9.4 },
+        { name: 'Libia', lat: 26.3, lng: 17.2 },
+        { name: 'Madagaskar', lat: -18.8, lng: 46.9 },
+        { name: 'Malediwy', lat: 3.2, lng: 73.2 },
+        { name: 'Malezja', lat: 4.2, lng: 102.0 },
+        { name: 'Maroko', lat: 31.8, lng: -7.1 },
+        { name: 'Mauritius', lat: -20.3, lng: 57.6 },
+        { name: 'Meksyk', lat: 23.6, lng: -102.5 },
+        { name: 'Mongolia', lat: 46.9, lng: 103.8 },
+        { name: 'Mozambik', lat: -18.7, lng: 35.5 },
+        { name: 'Namibia', lat: -23.0, lng: 18.5 },
+        { name: 'Nepal', lat: 28.4, lng: 84.1 },
+        { name: 'Niemcy', lat: 51.2, lng: 10.5 },
+        { name: 'Urugwaj', lat: -32.5, lng: -55.8 },
+        { name: 'Uzbekistan', lat: 41.4, lng: 64.6 },
+        { name: 'Wenezuela', lat: 6.4, lng: -66.6 },
+        { name: 'Węgry', lat: 47.1, lng: 19.5 },
+        { name: 'Wielka Brytania', lat: 55.4, lng: -3.4 },
+        { name: 'Wietnam', lat: 14.1, lng: 108.3 },
+        { name: 'Włochy', lat: 42.5, lng: 12.5 },
+        { name: 'Zambia', lat: -13.1, lng: 27.8 },
+        { name: 'Zimbabwe', lat: -19.0, lng: 29.2 },
+        { name: 'Filipiny', lat: 12.9, lng: 121.8 },
+        { name: 'Finlandia', lat: 64.5, lng: 26.0 },
+        { name: 'Francja', lat: 46.2, lng: 2.2 },
+        { name: 'Niger', lat: 17.6, lng: 8.1 },
+        { name: 'Nigeria', lat: 9.1, lng: 8.7 },
+        { name: 'Nikaragua', lat: 12.9, lng: -85.2 },
+        { name: 'Grecja', lat: 39.1, lng: 21.8 },
+        { name: 'Gruzja', lat: 42.3, lng: 43.4 },
+        { name: 'Gwatemala', lat: 15.8, lng: -90.2 },
+        { name: 'Hiszpania', lat: 40.5, lng: -3.7 },
+        { name: 'Holandia', lat: 52.1, lng: 5.3 },
+        { name: 'Indie', lat: 20.6, lng: 78.9 },
+        { name: 'Indonezja', lat: -2.5, lng: 118.0 },
+        { name: 'Irak', lat: 33.2, lng: 43.7 },
+        { name: 'Iran', lat: 32.4, lng: 53.7 },
+        { name: 'Norwegia', lat: 60.5, lng: 8.5 },
+        { name: 'Nowa Zelandia', lat: -41.3, lng: 174.8 },
+        { name: 'Oman', lat: 21.5, lng: 55.9 },
+        { name: 'Pakistan', lat: 30.4, lng: 69.3 },
+        { name: 'Panama', lat: 8.5, lng: -80.8 },
+        { name: 'Papua-Nowa Gwinea', lat: -6.3, lng: 144.0 },
+        { name: 'Paragwaj', lat: -23.4, lng: -58.4 },
+        { name: 'Peru', lat: -9.2, lng: -75.0 },
+        { name: 'Polska', lat: 52.1, lng: 19.4 },
+        { name: 'Irlandia', lat: 53.1, lng: -8.2 },
+        { name: 'Portugalia', lat: 39.4, lng: -8.2 },
+        { name: 'Islandia', lat: 64.9, lng: -19.0 },
+        { name: 'Rosja', lat: 61.5, lng: 105.3 },
+        { name: 'Izrael', lat: 31.0, lng: 35.0 },
+        { name: 'Rumunia', lat: 45.9, lng: 25.1 },
+        { name: 'Jamajka', lat: 18.1, lng: -77.3 },
+        { name: 'Seszele', lat: -4.7, lng: 55.5 },
+        { name: 'Japonia', lat: 36.2, lng: 138.3 },
+        { name: 'Singapur', lat: 1.3521, lng: 103.8198 }
+      ];
+
+      // --- Inicjalizacja listy państw ---
+      const countryListEl = document.getElementById('countryList');
+      const searchEl = document.getElementById('search');
+      const startBtn = document.getElementById('startBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const selectAllBtn = document.getElementById('selectAll');
+      const deselectAllBtn = document.getElementById('deselectAll');
+      const hud = document.getElementById('hud');
+      const scoreEl = document.getElementById('score');
+      const progressEl = document.getElementById('progress');
+      const targetNameEl = document.getElementById('targetName');
+      const toastEl = document.getElementById('toast');
+
+      let filtered = [...COUNTRY_DATA];
+
+      function renderCountryList(items) {
+        countryListEl.innerHTML = '';
+        for (const c of items) {
+          const li = document.createElement('li');
+          const id = `item-${c.name.replace(/\s+/g, '-')}`;
+          li.innerHTML = `
+            <input type="checkbox" id="${id}" data-name="${c.name}" />
+            <label for="${id}">${c.name}</label>
+          `;
+          countryListEl.appendChild(li);
+        }
+      }
+
+      renderCountryList(filtered);
+
+      searchEl.addEventListener('input', () => {
+        const q = searchEl.value.trim().toLowerCase();
+        filtered = COUNTRY_DATA.filter(c => c.name.toLowerCase().includes(q));
+        renderCountryList(filtered);
+      });
+
+      selectAllBtn.addEventListener('click', () => {
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+      });
+      deselectAllBtn.addEventListener('click', () => {
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      });
+
+      function getSelectedCountries() {
+        const names = Array.from(countryListEl.querySelectorAll('input[type="checkbox"]'))
+          .filter(cb => cb.checked)
+          .map(cb => cb.dataset.name);
+        const set = new Set(names);
+        return COUNTRY_DATA.filter(c => set.has(c.name));
+      }
+
+      // --- Mapa --- (bez etykiet miast/państw)
+      const map = L.map('map', {
+        zoomControl: true,
+        worldCopyJump: true
+      }).setView([30, 10], 2);
+
+      // CartoDB Positron (No Labels)
+      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> kontrybutorzy &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      // --- Quiz ---
+      let running = false;
+      let queue = [];
+      let currentIndex = 0;
+      let score = 0;
+      let markerLayer = L.layerGroup().addTo(map);
+      const markerByName = new Map();
+
+      const baseMarkerStyle = { radius: 7, color: '#374151', weight: 1.25, fillColor: '#6b7280', fillOpacity: 0.95 };
+      const correctStyle = { color: '#14532d', fillColor: '#22c55e' };
+      const wrongStyle = { color: '#7f1d1d', fillColor: '#ef4444' };
+
+      function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
+
+      function showToast(text) {
+        toastEl.textContent = text;
+        toastEl.style.display = 'block';
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => { toastEl.style.display = 'none'; }, 1200);
+      }
+
+      function updateHUD() {
+        scoreEl.textContent = String(score);
+        progressEl.textContent = `${Math.min(currentIndex, queue.length)}/${queue.length}`;
+        targetNameEl.textContent = queue[currentIndex]?.name ?? '—';
+      }
+
+      function setUiDisabled(disabled) {
+        startBtn.disabled = disabled;
+        countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.disabled = disabled);
+        searchEl.disabled = disabled;
+        selectAllBtn.disabled = disabled;
+        deselectAllBtn.disabled = disabled;
+      }
+
+      function clearMarkers() {
+        markerLayer.clearLayers();
+        markerByName.clear();
+      }
+
+      function fitToMarkers() {
+        if (markerLayer.getLayers().length === 0) return;
+        try {
+          const bounds = L.featureGroup(markerLayer.getLayers()).getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.2));
+          }
+        } catch (_) {}
+      }
+
+      function onMarkerClick(country, marker) {
+        if (!running) return;
+        const target = queue[currentIndex];
+        if (!target) return;
+
+        const isCorrect = country.name === target.name;
+        if (isCorrect) {
+          marker.setStyle(correctStyle);
+          marker.off('click');
+          score += 1;
+          currentIndex += 1;
+          if (currentIndex >= queue.length) {
+            updateHUD();
+            running = false;
+            setUiDisabled(false);
+            showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            targetNameEl.textContent = '—';
+            return;
+          }
+          updateHUD();
+        } else {
+          const prev = { ...baseMarkerStyle };
+          marker.setStyle({ ...baseMarkerStyle, ...wrongStyle });
+          setTimeout(() => marker.setStyle(prev), 450);
+        }
+      }
+
+      function startQuiz() {
+        const selected = getSelectedCountries();
+        if (selected.length < 2) {
+          showToast('Wybierz co najmniej 2 państwa.');
+          return;
+        }
+
+        running = true;
+        hud.style.display = 'flex';
+        score = 0;
+        currentIndex = 0;
+        queue = shuffle([...selected]);
+        updateHUD();
+        setUiDisabled(true);
+
+        clearMarkers();
+        for (const country of selected) {
+          const marker = L.circleMarker([country.lat, country.lng], baseMarkerStyle);
+          marker.on('click', () => onMarkerClick(country, marker));
+          marker.addTo(markerLayer);
+          markerByName.set(country.name, marker);
+        }
+        fitToMarkers();
+      }
+
+      function resetQuiz() {
+        running = false;
+        setUiDisabled(false);
+        hud.style.display = 'none';
+        targetNameEl.textContent = '—';
+        score = 0;
+        currentIndex = 0;
+        queue = [];
+        updateHUD();
+        clearMarkers();
+      }
+
+      startBtn.addEventListener('click', startQuiz);
+      resetBtn.addEventListener('click', resetQuiz);
+
+      // Przy pierwszym uruchomieniu: nic nie startujemy
+    </script>
+  </body>
+  </html>
