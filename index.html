@@ -180,6 +180,13 @@
           <div class="controls">
             <button id="selectAll">Zaznacz wszystkie</button>
             <button id="deselectAll">Odznacz wszystkie</button>
+            <label for="sort" style="margin-left:auto; font-size:12px; align-self:center;">Sortuj:</label>
+            <select id="sort" style="border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; font-size:13px;">
+              <option value="name-asc">A → Z</option>
+              <option value="name-desc">Z → A</option>
+              <option value="pop-desc">Populacja ↓</option>
+              <option value="pop-asc">Populacja ↑</option>
+            </select>
             <button id="startBtn" class="primary">Start</button>
             <button id="resetBtn">Reset</button>
           </div>
@@ -325,6 +332,111 @@
       const progressEl = document.getElementById('progress');
       const targetNameEl = document.getElementById('targetName');
       const toastEl = document.getElementById('toast');
+      const sortEl = document.getElementById('sort');
+
+      // Populacja (przybliżone wartości) – tylko do sortowania
+      const POP_BY_COUNTRY = {
+        'Afganistan': 40300000,
+        'Albania': 2830000,
+        'Algieria': 44900000,
+        'Kenia': 54000000,
+        'Arabia Saudyjska': 35800000,
+        'Kiribati': 130000,
+        'Kanada': 38000000,
+        'Katar': 2800000,
+        'Kazachstan': 19000000,
+        "S2owacja": 5450000,
+        'Somalia': 17000000,
+        'Stany Zjednoczone': 333000000,
+        'Syria': 21000000,
+        'Szwajcaria': 8700000,
+        'Argentyna': 45700000,
+        'Kolumbia': 51500000,
+        'Szwecja': 10400000,
+        'Australia': 26000000,
+        "Korea Po2udniowa": 51700000,
+        'Tanzania': 65000000,
+        'Austria': 9000000,
+        "Korea P32nocna": 26000000,
+        'Tunezja': 12000000,
+        'Bangladesz': 171000000,
+        'Kostaryka': 5200000,
+        'Turcja': 85000000,
+        "Bia2oru5b": 9400000,
+        'Kuba': 11200000,
+        'Ukraina': 41000000,
+        'Boliwia': 12000000,
+        'Liban': 5500000,
+        'Brazylia': 214000000,
+        'Bulgaria': 6800000,
+        'Chile': 19600000,
+        'Chiny': 1412000000,
+        'Chorwacja': 3900000,
+        'Cypr': 1250000,
+        'Czad': 18000000,
+        'Czechy': 10700000,
+        'Dania': 5900000,
+        'Dominikana': 11000000,
+        'Egipt': 110000000,
+        'Ekwador': 18000000,
+        'Etiopia': 120000000,
+        'Liberia': 5300000,
+        'Libia': 7000000,
+        'Madagaskar': 29000000,
+        'Malediwy': 520000,
+        'Malezja': 33000000,
+        'Maroko': 37000000,
+        'Mauritius': 1300000,
+        'Meksyk': 128000000,
+        'Mongolia': 3400000,
+        'Mozambik': 33000000,
+        'Namibia': 2600000,
+        'Nepal': 30000000,
+        'Niemcy': 84000000,
+        'Urugwaj': 3500000,
+        'Uzbekistan': 36000000,
+        'Wenezuela': 28900000,
+        "W9gry": 9600000,
+        'Wielka Brytania': 67000000,
+        'Wietnam': 98000000,
+        "W2ochy": 59000000,
+        'Zambia': 20000000,
+        'Zimbabwe': 16000000,
+        'Filipiny': 113000000,
+        'Finlandia': 5500000,
+        'Francja': 68000000,
+        'Niger': 26000000,
+        'Nigeria': 223000000,
+        'Nikaragua': 7000000,
+        'Grecja': 10400000,
+        'Gruzja': 3700000,
+        'Gwatemala': 18000000,
+        'Hiszpania': 48000000,
+        'Holandia': 17800000,
+        'Indie': 1428000000,
+        'Indonezja': 275000000,
+        'Irak': 44000000,
+        'Iran': 89000000,
+        'Norwegia': 5400000,
+        'Nowa Zelandia': 5200000,
+        'Oman': 4600000,
+        'Pakistan': 240000000,
+        'Panama': 4500000,
+        'Papua-Nowa Gwinea': 9500000,
+        'Paragwaj': 7200000,
+        'Peru': 34000000,
+        'Polska': 38000000,
+        'Irlandia': 5100000,
+        'Portugalia': 10300000,
+        'Islandia': 380000,
+        'Rosja': 146000000,
+        'Izrael': 9700000,
+        'Rumunia': 19000000,
+        'Jamajka': 2900000,
+        'Seszele': 100000,
+        'Japonia': 125000000,
+        'Singapur': 5700000
+      };
 
       let filtered = [...COUNTRY_DATA];
 
@@ -341,12 +453,26 @@
         }
       }
 
-      renderCountryList(filtered);
+      function applySort(items) {
+        const mode = sortEl?.value || 'name-asc';
+        const arr = [...items];
+        if (mode === 'name-asc') arr.sort((a,b) => a.name.localeCompare(b.name, 'pl'));
+        else if (mode === 'name-desc') arr.sort((a,b) => b.name.localeCompare(a.name, 'pl'));
+        else if (mode === 'pop-desc') arr.sort((a,b) => (POP_BY_COUNTRY[b.name] ?? 0) - (POP_BY_COUNTRY[a.name] ?? 0));
+        else if (mode === 'pop-asc') arr.sort((a,b) => (POP_BY_COUNTRY[a.name] ?? 0) - (POP_BY_COUNTRY[b.name] ?? 0));
+        return arr;
+      }
+
+      renderCountryList(applySort(filtered));
 
       searchEl.addEventListener('input', () => {
         const q = searchEl.value.trim().toLowerCase();
         filtered = COUNTRY_DATA.filter(c => c.name.toLowerCase().includes(q));
-        renderCountryList(filtered);
+        renderCountryList(applySort(filtered));
+      });
+
+      sortEl.addEventListener('change', () => {
+        renderCountryList(applySort(filtered));
       });
 
       selectAllBtn.addEventListener('click', () => {
