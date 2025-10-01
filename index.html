@@ -125,6 +125,14 @@
         width: 100%;
       }
 
+      /* Ulepszenia mobilne: pełna szerokość panelu wyboru */
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 100%;
+          max-width: none;
+        }
+      }
+
       .hud {
         position: absolute;
         top: 12px;
@@ -479,6 +487,7 @@
       }
 
       renderCountryList(applySort(filtered));
+      applyLayout();
 
       searchEl.addEventListener('input', () => {
         const q = searchEl.value.trim().toLowerCase();
@@ -533,8 +542,6 @@
       let score = 0;
       let markerLayer = L.layerGroup().addTo(map);
       const markerByName = new Map();
-      const triesLeftByName = new Map();
-      const MAX_TRIES_PER_COUNTRY = 2; // liczba szans
       const REQUEUE_GAP = 3; // po ilu pytaniach ponowić próbę
 
       const baseMarkerStyle = { radius: 7, color: '#374151', weight: 1.25, fillColor: '#6b7280', fillOpacity: 0.95 };
@@ -565,6 +572,30 @@
         if (pickCountEl) pickCountEl.disabled = disabled;
         if (pickTopBtn) pickTopBtn.disabled = disabled;
       }
+
+      // Tryb mobilny: na telefonie najpierw tylko wybieranie, potem tylko mapa
+      const appEl = document.querySelector('.app');
+      const sidebarEl = document.querySelector('.sidebar');
+      const mainEl = document.querySelector('.main');
+
+      function isMobile() { return window.matchMedia('(max-width: 768px)').matches; }
+
+      function applyLayout() {
+        if (isMobile()) {
+          if (running) {
+            if (sidebarEl) sidebarEl.style.display = 'none';
+            if (mainEl) mainEl.style.display = 'flex';
+          } else {
+            if (sidebarEl) sidebarEl.style.display = 'flex';
+            if (mainEl) mainEl.style.display = 'none';
+          }
+        } else {
+          if (sidebarEl) sidebarEl.style.display = 'flex';
+          if (mainEl) mainEl.style.display = 'flex';
+        }
+      }
+
+      window.addEventListener('resize', applyLayout);
 
       function clearMarkers() {
         markerLayer.clearLayers();
@@ -614,20 +645,11 @@
             setTimeout(() => correctMarker.setStyle(prevCorrect), 750);
           }
 
-          // Zarządzaj liczbą szans i requeue
-          const left = (triesLeftByName.get(target.name) ?? MAX_TRIES_PER_COUNTRY);
-          const remaining = Math.max(0, left - 1);
-          triesLeftByName.set(target.name, remaining);
-
-          // Usuń bieżący cel i – jeśli są szanse – wstaw ponownie za kilka pytań
+          // Zawsze requeue: wstaw ponownie za kilka pytań
           const [cur] = queue.splice(currentIndex, 1);
-          if (remaining > 0) {
-            const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
-            queue.splice(insertAt, 0, cur);
-            showToast(`Błąd. Spróbujesz ponownie za kilka pytań (pozostało: ${remaining}).`);
-          } else {
-            showToast('Błąd. Brak pozostałych szans na ten kraj.');
-          }
+          const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+          queue.splice(insertAt, 0, cur);
+          showToast('Błąd. Spróbujesz ponownie za kilka pytań.');
 
           // currentIndex wskazuje teraz kolejny element; jeśli nic nie zostało – zakończ
           if (currentIndex >= queue.length) {
@@ -654,10 +676,9 @@
         score = 0;
         currentIndex = 0;
         queue = shuffle([...selected]);
-        triesLeftByName.clear();
-        for (const c of selected) triesLeftByName.set(c.name, MAX_TRIES_PER_COUNTRY);
         updateHUD();
         setUiDisabled(true);
+        applyLayout();
 
         clearMarkers();
         for (const country of selected) {
@@ -677,9 +698,9 @@
         score = 0;
         currentIndex = 0;
         queue = [];
-        triesLeftByName.clear();
         updateHUD();
         clearMarkers();
+        applyLayout();
       }
 
       startBtn.addEventListener('click', startQuiz);
