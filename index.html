@@ -187,6 +187,8 @@
               <option value="pop-desc">Populacja ↓</option>
               <option value="pop-asc">Populacja ↑</option>
             </select>
+            <input id="pickCount" type="number" min="1" value="10" title="Ile pierwszych zaznaczyć" style="width:72px; padding:6px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;" />
+            <button id="pickTop">Wybierz X pierwszych</button>
             <button id="startBtn" class="primary">Start</button>
             <button id="resetBtn">Reset</button>
           </div>
@@ -333,6 +335,8 @@
       const targetNameEl = document.getElementById('targetName');
       const toastEl = document.getElementById('toast');
       const sortEl = document.getElementById('sort');
+      const pickCountEl = document.getElementById('pickCount');
+      const pickTopBtn = document.getElementById('pickTop');
 
       // Populacja (przybliżone wartości) – tylko do sortowania
       const POP_BY_COUNTRY = {
@@ -451,6 +455,17 @@
           `;
           countryListEl.appendChild(li);
         }
+        // Ustaw maksymalną wartość i ogranicz bieżącą dla pola "X"
+        if (pickCountEl) {
+          pickCountEl.max = String(items.length);
+          const current = parseInt(pickCountEl.value || '0', 10);
+          const max = items.length || 1;
+          if (!Number.isFinite(current) || current < 1) {
+            pickCountEl.value = String(Math.min(10, max));
+          } else if (current > max) {
+            pickCountEl.value = String(max);
+          }
+        }
       }
 
       function applySort(items) {
@@ -480,6 +495,14 @@
       });
       deselectAllBtn.addEventListener('click', () => {
         countryListEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      });
+
+      // Wybierz X pierwszych krajów z aktualnej listy (po sortowaniu i filtrze)
+      pickTopBtn.addEventListener('click', () => {
+        const checkboxes = Array.from(countryListEl.querySelectorAll('input[type="checkbox"]'));
+        const max = checkboxes.length;
+        const n = Math.max(0, Math.min(parseInt(pickCountEl.value, 10) || 0, max));
+        checkboxes.forEach((cb, i) => cb.checked = i < n);
       });
 
       function getSelectedCountries() {
@@ -536,6 +559,8 @@
         searchEl.disabled = disabled;
         selectAllBtn.disabled = disabled;
         deselectAllBtn.disabled = disabled;
+        if (pickCountEl) pickCountEl.disabled = disabled;
+        if (pickTopBtn) pickTopBtn.disabled = disabled;
       }
 
       function clearMarkers() {
