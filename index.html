@@ -533,6 +533,9 @@
       let score = 0;
       let markerLayer = L.layerGroup().addTo(map);
       const markerByName = new Map();
+      const triesLeftByName = new Map();
+      const MAX_TRIES_PER_COUNTRY = 2; // liczba szans
+      const REQUEUE_GAP = 3; // po ilu pytaniach ponowić próbę
 
       const baseMarkerStyle = { radius: 7, color: '#374151', weight: 1.25, fillColor: '#6b7280', fillOpacity: 0.95 };
       const correctStyle = { color: '#14532d', fillColor: '#22c55e' };
@@ -602,6 +605,40 @@
           const prev = { ...baseMarkerStyle };
           marker.setStyle({ ...baseMarkerStyle, ...wrongStyle });
           setTimeout(() => marker.setStyle(prev), 450);
+
+          // Podświetl prawidłowy kraj na chwilę
+          const correctMarker = markerByName.get(target.name);
+          if (correctMarker) {
+            const prevCorrect = { ...baseMarkerStyle };
+            correctMarker.setStyle({ ...baseMarkerStyle, color: '#1e3a8a', fillColor: '#60a5fa' });
+            setTimeout(() => correctMarker.setStyle(prevCorrect), 750);
+          }
+
+          // Zarządzaj liczbą szans i requeue
+          const left = (triesLeftByName.get(target.name) ?? MAX_TRIES_PER_COUNTRY);
+          const remaining = Math.max(0, left - 1);
+          triesLeftByName.set(target.name, remaining);
+
+          // Usuń bieżący cel i – jeśli są szanse – wstaw ponownie za kilka pytań
+          const [cur] = queue.splice(currentIndex, 1);
+          if (remaining > 0) {
+            const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+            queue.splice(insertAt, 0, cur);
+            showToast(`Błąd. Spróbujesz ponownie za kilka pytań (pozostało: ${remaining}).`);
+          } else {
+            showToast('Błąd. Brak pozostałych szans na ten kraj.');
+          }
+
+          // currentIndex wskazuje teraz kolejny element; jeśli nic nie zostało – zakończ
+          if (currentIndex >= queue.length) {
+            updateHUD();
+            running = false;
+            setUiDisabled(false);
+            showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            targetNameEl.textContent = '�?"';
+            return;
+          }
+          updateHUD();
         }
       }
 
@@ -617,6 +654,8 @@
         score = 0;
         currentIndex = 0;
         queue = shuffle([...selected]);
+        triesLeftByName.clear();
+        for (const c of selected) triesLeftByName.set(c.name, MAX_TRIES_PER_COUNTRY);
         updateHUD();
         setUiDisabled(true);
 
@@ -638,6 +677,7 @@
         score = 0;
         currentIndex = 0;
         queue = [];
+        triesLeftByName.clear();
         updateHUD();
         clearMarkers();
       }
