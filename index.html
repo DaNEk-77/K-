@@ -345,6 +345,9 @@
       const sortEl = document.getElementById('sort');
       const pickCountEl = document.getElementById('pickCount');
       const pickTopBtn = document.getElementById('pickTop');
+      const appEl = document.querySelector('.app');
+      const sidebarEl = document.querySelector('.sidebar');
+      const mainEl = document.querySelector('.main');
 
       // Populacja (przybliżone wartości) – tylko do sortowania
       const POP_BY_COUNTRY = {
@@ -574,9 +577,6 @@
       }
 
       // Tryb mobilny: na telefonie najpierw tylko wybieranie, potem tylko mapa
-      const appEl = document.querySelector('.app');
-      const sidebarEl = document.querySelector('.sidebar');
-      const mainEl = document.querySelector('.main');
 
       function isMobile() { return window.matchMedia('(max-width: 768px)').matches; }
 
@@ -585,6 +585,15 @@
           if (running) {
             if (sidebarEl) sidebarEl.style.display = 'none';
             if (mainEl) mainEl.style.display = 'flex';
+            // Po pokazaniu mapy z ukrycia przelicz jej wymiary
+            setTimeout(() => {
+              try {
+                if (typeof map !== 'undefined' && map.invalidateSize) {
+                  map.invalidateSize();
+                  if (typeof fitToMarkers === 'function') fitToMarkers();
+                }
+              } catch(_){}
+            }, 50);
           } else {
             if (sidebarEl) sidebarEl.style.display = 'flex';
             if (mainEl) mainEl.style.display = 'none';
@@ -592,6 +601,12 @@
         } else {
           if (sidebarEl) sidebarEl.style.display = 'flex';
           if (mainEl) mainEl.style.display = 'flex';
+          // Na desktopie również upewnij się, że mapa ma właściwy rozmiar po zmianie układu
+          setTimeout(() => {
+            try {
+              if (typeof map !== 'undefined' && map.invalidateSize) map.invalidateSize();
+            } catch(_){}
+          }, 50);
         }
       }
 
@@ -688,6 +703,7 @@
           markerByName.set(country.name, marker);
         }
         fitToMarkers();
+        setTimeout(() => { try { if (typeof map !== 'undefined' && map.invalidateSize) { map.invalidateSize(); fitToMarkers(); } } catch(_){} }, 50);
       }
 
       function resetQuiz() {
