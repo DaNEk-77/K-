@@ -388,6 +388,7 @@
       let typeBox = document.getElementById('typeBox');
       let answerInput = document.getElementById('answerInput');
       let answerBtn = document.getElementById('answerBtn');
+      let hudMsgEl = document.getElementById('hudMsg');
       let idkBtn = document.getElementById('idkBtn');
       const targetContainer = targetNameEl ? targetNameEl.closest('div') : null;
       if (!typeBox && hud) {
@@ -437,6 +438,16 @@
         typeBox.appendChild(answerBtn);
         typeBox.appendChild(idkBtn);
         hud.appendChild(typeBox);
+      }
+
+      if (!hudMsgEl && hud) {
+        hudMsgEl = document.createElement('span');
+        hudMsgEl.id = 'hudMsg';
+        hudMsgEl.style.marginLeft = '8px';
+        hudMsgEl.style.fontSize = '13px';
+        hudMsgEl.style.color = '#374151';
+        hudMsgEl.style.display = 'none';
+        hud.appendChild(hudMsgEl);
       }
 
       // Populacja (przybliżone wartości) – tylko do sortowania
@@ -706,6 +717,8 @@
 
       function updateTypeTargetHint() {
         if (quizMode !== 'type-target') return;
+        // Nowe pytanie – wyczyść poprzedni komunikat w HUD
+        showHudMessage('');
         // Przywróć poprzedni hint jeśli nie został rozwiązany
         if (hintedName && !solvedNames.has(hintedName)) {
           const prevM = markerByName.get(hintedName);
@@ -742,6 +755,27 @@
             try { m.unbindTooltip(); } catch(_){}
           }, 1200);
         } catch(_){}
+      }
+
+      function showHudMessage(text, ms = null) {
+        if (!hudMsgEl) return;
+        if (!text) {
+          hudMsgEl.style.display = 'none';
+          hudMsgEl.textContent = '';
+          if (showHudMessage._t) clearTimeout(showHudMessage._t);
+          return;
+        }
+        hudMsgEl.textContent = text;
+        hudMsgEl.style.display = '';
+        if (showHudMessage._t) clearTimeout(showHudMessage._t);
+        if (Number.isFinite(ms) && ms > 0) {
+          showHudMessage._t = setTimeout(() => {
+            try {
+              hudMsgEl.style.display = 'none';
+              hudMsgEl.textContent = '';
+            } catch(_){}
+          }, ms);
+        }
       }
 
       function updateHUD() {
@@ -876,6 +910,7 @@
 
         running = true;
         hud.style.display = 'flex';
+        showHudMessage('');
         score = 0;
         currentIndex = 0;
         queue = shuffle([...selected]);
@@ -966,9 +1001,11 @@
               targetNameEl.textContent = '—';
               return;
             }
+            showHudMessage(`To było: ${target.name}`);
             updateHUD();
             refreshQuizUiMode();
             updateTypeTargetHint();
+            showToast(`Błąd. To było: ${target.name}. Spróbujesz ponownie za kilka pytań.`);
           } else {
             // Pokaż etykietę poprawnego kraju na chwilę
             showTempLabelFor(target.name);
