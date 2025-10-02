@@ -673,6 +673,21 @@
         } catch(_) { return s.toString().trim().toLowerCase(); }
       }
 
+      // Dodatkowe akceptowane nazwy (aliasy) dla trybu "Wpisywanie wskazanego"
+      const ALT_NAMES = {
+        'Wielka Brytania': ['Anglia', 'GB', 'UK', 'Zjednoczone Królestwo', 'Wlk Brytania', 'Wlk. Brytania', 'Great Britain', 'United Kingdom'],
+        'Stany Zjednoczone': ['USA', 'US', 'U.S.A.', 'Stany', 'Ameryka', 'Stany Zjednoczone Ameryki']
+      };
+
+      function acceptedNamesFor(canonicalName) {
+        const set = new Set([normalizeName(canonicalName)]);
+        try {
+          const arr = ALT_NAMES[canonicalName] || [];
+          for (const alt of arr) set.add(normalizeName(alt));
+        } catch(_) {}
+        return set;
+      }
+
       function refreshQuizUiMode() {
         if (quizMode === 'type') {
           if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
@@ -702,9 +717,31 @@
         if (m) {
           m.setStyle({ ...baseMarkerStyle, ...hintStyle });
           hintedName = target.name;
+          // Przybliż mapę na wskazany kraj
+          try {
+            const ll = typeof m.getLatLng === 'function' ? m.getLatLng() : null;
+            if (ll && typeof map !== 'undefined') {
+              const currentZ = (map.getZoom && map.getZoom()) || 2;
+              const targetZ = Math.max(currentZ, 4.5);
+              if (map.flyTo) map.flyTo(ll, targetZ, { duration: 0.6 });
+              else if (map.setView) map.setView(ll, targetZ);
+            }
+          } catch(_) {}
         } else {
           hintedName = null;
         }
+      }
+
+      function showTempLabelFor(name) {
+        try {
+          const m = markerByName.get(name);
+          if (!m) return;
+          if (m._tempLabelTimer) clearTimeout(m._tempLabelTimer);
+          m.bindTooltip(String(name), { direction: 'top', offset: [0, -8], opacity: 0.95 }).openTooltip();
+          m._tempLabelTimer = setTimeout(() => {
+            try { m.unbindTooltip(); } catch(_){}
+          }, 1200);
+        } catch(_){}
       }
 
       function updateHUD() {
@@ -807,6 +844,7 @@
             const prevCorrect = { ...baseMarkerStyle };
             correctMarker.setStyle({ ...baseMarkerStyle, color: '#1e3a8a', fillColor: '#60a5fa' });
             setTimeout(() => correctMarker.setStyle(prevCorrect), 750);
+            showTempLabelFor(target.name);
           }
 
           // Zawsze requeue: wstaw ponownie za kilka pytań
@@ -910,7 +948,8 @@
         if (quizMode === 'type-target') {
           const target = queue[currentIndex];
           if (!target) return;
-          const isCorrect = norm === normalizeName(target.name);
+          const accepted = acceptedNamesFor(target.name);
+          const isCorrect = accepted.has(norm);
           if (isCorrect) {
             const m = markerByName.get(target.name);
             if (m) m.setStyle({ ...baseMarkerStyle, ...correctStyle });
@@ -931,6 +970,8 @@
             refreshQuizUiMode();
             updateTypeTargetHint();
           } else {
+            // Pokaż etykietę poprawnego kraju na chwilę
+            showTempLabelFor(target.name);
             // Requeue za kilka pytań
             const [cur] = queue.splice(currentIndex, 1);
             const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
