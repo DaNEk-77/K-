@@ -388,6 +388,7 @@
       let typeBox = document.getElementById('typeBox');
       let answerInput = document.getElementById('answerInput');
       let answerBtn = document.getElementById('answerBtn');
+      let idkBtn = document.getElementById('idkBtn');
       const targetContainer = targetNameEl ? targetNameEl.closest('div') : null;
       if (!typeBox && hud) {
         typeBox = document.createElement('div');
@@ -418,8 +419,23 @@
         answerBtn.style.fontSize = '13px';
         answerBtn.style.cursor = 'pointer';
 
+        idkBtn = document.createElement('button');
+        idkBtn.id = 'idkBtn';
+        idkBtn.textContent = 'Nie wiem';
+        idkBtn.title = 'Pomiń to pytanie';
+        idkBtn.style.appearance = 'none';
+        idkBtn.style.border = '1px solid #6b7280';
+        idkBtn.style.background = '#fff';
+        idkBtn.style.color = '#111827';
+        idkBtn.style.padding = '6px 10px';
+        idkBtn.style.borderRadius = '6px';
+        idkBtn.style.fontSize = '13px';
+        idkBtn.style.cursor = 'pointer';
+        idkBtn.style.display = 'none';
+
         typeBox.appendChild(answerInput);
         typeBox.appendChild(answerBtn);
+        typeBox.appendChild(idkBtn);
         hud.appendChild(typeBox);
       }
 
@@ -661,12 +677,15 @@
         if (quizMode === 'type') {
           if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
           if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = 'none';
         } else if (quizMode === 'type-target') {
           if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
           if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = '';
         } else {
           if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = '';
           if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'none';
+          if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.style.display = 'none';
         }
       }
 
@@ -924,6 +943,21 @@
         }
       }
 
+      function onIDontKnow() {
+        if (!running || quizMode !== 'type-target') return;
+        const target = queue[currentIndex];
+        if (!target) return;
+        // Pomiń jak błąd: przenieś pytanie dalej
+        const [cur] = queue.splice(currentIndex, 1);
+        const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+        queue.splice(insertAt, 0, cur);
+        answerInput && (answerInput.value = '');
+        showToast('Pominięto. Spróbujesz ponownie za kilka pytań.');
+        updateHUD();
+        refreshQuizUiMode();
+        updateTypeTargetHint();
+      }
+
       function resetQuiz() {
         running = false;
         setUiDisabled(false);
@@ -950,6 +984,7 @@
       resetBtn.addEventListener('click', resetQuiz);
       if (typeof answerBtn !== 'undefined' && answerBtn) answerBtn.addEventListener('click', onAnswerSubmit);
       if (typeof answerInput !== 'undefined' && answerInput) answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onAnswerSubmit(); });
+      if (typeof idkBtn !== 'undefined' && idkBtn) idkBtn.addEventListener('click', onIDontKnow);
 
       // Przy pierwszym uruchomieniu: nic nie startujemy
     </script>
