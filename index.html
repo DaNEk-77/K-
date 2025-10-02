@@ -349,6 +349,80 @@
       const sidebarEl = document.querySelector('.sidebar');
       const mainEl = document.querySelector('.main');
 
+      // Dynamiczne dodanie trybu quizu (klik/wpisywanie) i pola odpowiedzi
+      const controlsEl = document.querySelector('.controls');
+      let modeEl = document.getElementById('mode');
+      if (!modeEl && controlsEl && sortEl) {
+        const modeLabel = document.createElement('label');
+        modeLabel.setAttribute('for', 'mode');
+        modeLabel.style.marginLeft = '6px';
+        modeLabel.style.fontSize = '12px';
+        modeLabel.style.alignSelf = 'center';
+        modeLabel.textContent = 'Tryb:';
+
+        modeEl = document.createElement('select');
+        modeEl.id = 'mode';
+        modeEl.title = 'Wybierz tryb quizu';
+        modeEl.style.border = '1px solid #d1d5db';
+        modeEl.style.borderRadius = '6px';
+        modeEl.style.padding = '6px 8px';
+        modeEl.style.fontSize = '13px';
+
+        const optClick = document.createElement('option');
+        optClick.value = 'click';
+        optClick.textContent = 'Klikanie na mapie';
+        const optType = document.createElement('option');
+        optType.value = 'type';
+        optType.textContent = 'Wpisywanie nazw';
+        const optTypeTarget = document.createElement('option');
+        optTypeTarget.value = 'type-target';
+        optTypeTarget.textContent = 'Wpisywanie wskazanego';
+        modeEl.append(optClick, optType, optTypeTarget);
+
+        // Wstaw za selectem sortowania
+        sortEl.insertAdjacentElement('afterend', modeEl);
+        sortEl.insertAdjacentElement('afterend', modeLabel);
+      }
+
+      // Pole do wpisywania odpowiedzi w HUD (tworzone dynamicznie)
+      let typeBox = document.getElementById('typeBox');
+      let answerInput = document.getElementById('answerInput');
+      let answerBtn = document.getElementById('answerBtn');
+      const targetContainer = targetNameEl ? targetNameEl.closest('div') : null;
+      if (!typeBox && hud) {
+        typeBox = document.createElement('div');
+        typeBox.id = 'typeBox';
+        typeBox.style.display = 'none';
+        typeBox.style.gap = '6px';
+        typeBox.style.alignItems = 'center';
+
+        answerInput = document.createElement('input');
+        answerInput.id = 'answerInput';
+        answerInput.type = 'text';
+        answerInput.placeholder = 'Wpisz nazwę państwa i Enter';
+        answerInput.style.padding = '6px 8px';
+        answerInput.style.border = '1px solid #d1d5db';
+        answerInput.style.borderRadius = '6px';
+        answerInput.style.fontSize = '13px';
+        answerInput.style.width = '220px';
+
+        answerBtn = document.createElement('button');
+        answerBtn.id = 'answerBtn';
+        answerBtn.textContent = 'OK';
+        answerBtn.style.appearance = 'none';
+        answerBtn.style.border = '1px solid #2563eb';
+        answerBtn.style.background = '#2563eb';
+        answerBtn.style.color = '#fff';
+        answerBtn.style.padding = '6px 10px';
+        answerBtn.style.borderRadius = '6px';
+        answerBtn.style.fontSize = '13px';
+        answerBtn.style.cursor = 'pointer';
+
+        typeBox.appendChild(answerInput);
+        typeBox.appendChild(answerBtn);
+        hud.appendChild(typeBox);
+      }
+
       // Populacja (przybliżone wartości) – tylko do sortowania
       const POP_BY_COUNTRY = {
         'Afganistan': 40300000,
@@ -550,6 +624,7 @@
       const baseMarkerStyle = { radius: 7, color: '#374151', weight: 1.25, fillColor: '#6b7280', fillOpacity: 0.95 };
       const correctStyle = { color: '#14532d', fillColor: '#22c55e' };
       const wrongStyle = { color: '#7f1d1d', fillColor: '#ef4444' };
+      const hintStyle = { color: '#1e3a8a', fillColor: '#60a5fa' };
 
       function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
 
@@ -558,6 +633,59 @@
         toastEl.style.display = 'block';
         clearTimeout(showToast._t);
         showToast._t = setTimeout(() => { toastEl.style.display = 'none'; }, 1200);
+      }
+
+      // --- Tryby quizu i pomocnicze ---
+      let quizMode = 'click';
+      let remainingNames = new Set();
+      let nameIndex = new Map(); // normalized -> original
+      let solvedNames = new Set();
+      let hintedName = null;
+
+      function normalizeName(s) {
+        try {
+          return s
+            .toString()
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // usuń diakrytyki
+            .replace(/[-'’`]/g, ' ') // łączniki/apostrofy → spacje
+            .replace(/[^a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s]/g, '') // zostaw litery i spacje
+            .replace(/\s+/g, ' ')
+            .trim();
+        } catch(_) { return s.toString().trim().toLowerCase(); }
+      }
+
+      function refreshQuizUiMode() {
+        if (quizMode === 'type') {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+        } else if (quizMode === 'type-target') {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = 'none';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'flex';
+        } else {
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = '';
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'none';
+        }
+      }
+
+      function updateTypeTargetHint() {
+        if (quizMode !== 'type-target') return;
+        // Przywróć poprzedni hint jeśli nie został rozwiązany
+        if (hintedName && !solvedNames.has(hintedName)) {
+          const prevM = markerByName.get(hintedName);
+          if (prevM) prevM.setStyle({ ...baseMarkerStyle });
+        }
+        const target = queue[currentIndex];
+        if (!target) return;
+        const m = markerByName.get(target.name);
+        if (m) {
+          m.setStyle({ ...baseMarkerStyle, ...hintStyle });
+          hintedName = target.name;
+        } else {
+          hintedName = null;
+        }
       }
 
       function updateHUD() {
@@ -574,6 +702,7 @@
         deselectAllBtn.disabled = disabled;
         if (pickCountEl) pickCountEl.disabled = disabled;
         if (pickTopBtn) pickTopBtn.disabled = disabled;
+        if (typeof modeEl !== 'undefined' && modeEl) modeEl.disabled = disabled;
       }
 
       // Tryb mobilny: na telefonie najpierw tylko wybieranie, potem tylko mapa
@@ -629,6 +758,7 @@
 
       function onMarkerClick(country, marker) {
         if (!running) return;
+        if (quizMode !== 'click') return;
         const target = queue[currentIndex];
         if (!target) return;
 
@@ -681,6 +811,7 @@
 
       function startQuiz() {
         const selected = getSelectedCountries();
+        quizMode = (typeof modeEl !== 'undefined' && modeEl && modeEl.value) ? modeEl.value : 'click';
         if (selected.length < 2) {
           showToast('Wybierz co najmniej 2 państwa.');
           return;
@@ -702,8 +833,95 @@
           marker.addTo(markerLayer);
           markerByName.set(country.name, marker);
         }
+        if (quizMode === 'type') {
+          remainingNames = new Set();
+          nameIndex = new Map();
+          for (const c of selected) {
+            const norm = normalizeName(c.name);
+            remainingNames.add(norm);
+            nameIndex.set(norm, c.name);
+          }
+          refreshQuizUiMode();
+          try { answerInput && answerInput.focus(); } catch(_) {}
+        } else if (quizMode === 'type-target') {
+          solvedNames = new Set();
+          hintedName = null;
+          refreshQuizUiMode();
+          updateTypeTargetHint();
+          try { answerInput && answerInput.focus(); } catch(_) {}
+        } else {
+          refreshQuizUiMode();
+        }
         fitToMarkers();
         setTimeout(() => { try { if (typeof map !== 'undefined' && map.invalidateSize) { map.invalidateSize(); fitToMarkers(); } } catch(_){} }, 50);
+      }
+
+      function onAnswerSubmit() {
+        if (!running) return;
+        const raw = (answerInput?.value || '').trim();
+        if (!raw) return;
+        const norm = normalizeName(raw);
+
+        if (quizMode === 'type') {
+          if (remainingNames.has(norm)) {
+            remainingNames.delete(norm);
+            const original = nameIndex.get(norm) || raw;
+            const m = markerByName.get(original);
+            if (m) m.setStyle({ ...baseMarkerStyle, ...correctStyle });
+            score += 1;
+            currentIndex = score;
+            answerInput.value = '';
+            showToast(`Dobrze! (${score}/${queue.length})`);
+            if (score >= queue.length) {
+              updateHUD();
+              refreshQuizUiMode();
+              running = false;
+              setUiDisabled(false);
+              showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+            } else {
+              updateHUD();
+              refreshQuizUiMode();
+            }
+          } else {
+            showToast('Brak na liście zaznaczonych. Spróbuj ponownie.');
+          }
+          return;
+        }
+
+        if (quizMode === 'type-target') {
+          const target = queue[currentIndex];
+          if (!target) return;
+          const isCorrect = norm === normalizeName(target.name);
+          if (isCorrect) {
+            const m = markerByName.get(target.name);
+            if (m) m.setStyle({ ...baseMarkerStyle, ...correctStyle });
+            solvedNames.add(target.name);
+            score += 1;
+            currentIndex += 1;
+            answerInput.value = '';
+            if (currentIndex >= queue.length) {
+              updateHUD();
+              refreshQuizUiMode();
+              running = false;
+              setUiDisabled(false);
+              showToast(`Koniec! Wynik: ${score}/${queue.length}`);
+              targetNameEl.textContent = '—';
+              return;
+            }
+            updateHUD();
+            refreshQuizUiMode();
+            updateTypeTargetHint();
+          } else {
+            // Requeue za kilka pytań
+            const [cur] = queue.splice(currentIndex, 1);
+            const insertAt = Math.min(queue.length, currentIndex + REQUEUE_GAP);
+            queue.splice(insertAt, 0, cur);
+            showToast('Błąd. Spróbujesz ponownie za kilka pytań.');
+            updateHUD();
+            refreshQuizUiMode();
+            updateTypeTargetHint();
+          }
+        }
       }
 
       function resetQuiz() {
@@ -716,11 +934,22 @@
         queue = [];
         updateHUD();
         clearMarkers();
+        // Przywróć UI trybu
+        try {
+          if (typeof typeBox !== 'undefined' && typeBox) typeBox.style.display = 'none';
+          if (typeof targetContainer !== 'undefined' && targetContainer) targetContainer.style.display = '';
+          if (typeof answerInput !== 'undefined' && answerInput) answerInput.value = '';
+          quizMode = 'click';
+          solvedNames = new Set();
+          hintedName = null;
+        } catch(_) {}
         applyLayout();
       }
 
       startBtn.addEventListener('click', startQuiz);
       resetBtn.addEventListener('click', resetQuiz);
+      if (typeof answerBtn !== 'undefined' && answerBtn) answerBtn.addEventListener('click', onAnswerSubmit);
+      if (typeof answerInput !== 'undefined' && answerInput) answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') onAnswerSubmit(); });
 
       // Przy pierwszym uruchomieniu: nic nie startujemy
     </script>
