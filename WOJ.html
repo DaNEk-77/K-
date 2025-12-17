@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Konturówka + [AFRYKA]</title>
+    <title>Konturówka + [POLSKIE WOJEWÓDZTWA]</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -184,7 +184,7 @@
     <div class="app">
       <aside class="sidebar">
         <header>
-          <h1><a href="https://danek-77.github.io/K-/">Konturówka + [AFRYKA]</a></h1>
+          <h1><a href="http://KONTOROWKI.THEREDTEST.PL">Konturówka + [POLSKIE WOJEWÓDZTWA]</a></h1>
           <div class="controls">
             <button id="selectAll">Zaznacz wszystkie</button>
             <button id="deselectAll">Odznacz wszystkie</button>
@@ -226,56 +226,72 @@
     <script>
       // --- Dane: państwa z pliku panstwa.txt ---
 const COUNTRY_DATA = [
-  // Województwa + stolice
-  { name: 'Województwo Dolnośląskie', lat: 51.1079, lng: 17.0385 },
+  // Dolnośląskie
+  { name: 'Województwo Dolnośląskie', lat: 51.0, lng: 16.0 },
   { name: 'STOLICA: Wrocław', lat: 51.1079, lng: 17.0385 },
 
-  { name: 'Województwo Kujawsko-Pomorskie', lat: 53.1235, lng: 18.0084 },
+  // Kujawsko-Pomorskie
+  { name: 'Województwo Kujawsko-Pomorskie', lat: 53.0, lng: 18.5 },
   { name: 'STOLICA: Bydgoszcz', lat: 53.1235, lng: 18.0084 },
 
-  { name: 'Województwo Lubelskie', lat: 51.2465, lng: 22.5684 },
+  // Lubelskie
+  { name: 'Województwo Lubelskie', lat: 51.3, lng: 22.5 },
   { name: 'STOLICA: Lublin', lat: 51.2465, lng: 22.5684 },
 
-  { name: 'Województwo Lubuskie', lat: 52.7318, lng: 15.2400 },
+  // Lubuskie (dwie stolice)
+  { name: 'Województwo Lubuskie', lat: 52.3, lng: 15.0 },
   { name: 'STOLICA: Gorzów Wielkopolski', lat: 52.7318, lng: 15.2400 },
   { name: 'STOLICA: Zielona Góra', lat: 51.9356, lng: 15.5062 },
 
-  { name: 'Województwo Łódzkie', lat: 51.7592, lng: 19.4560 },
+  // Łódzkie
+  { name: 'Województwo Łódzkie', lat: 51.5, lng: 19.5 },
   { name: 'STOLICA: Łódź', lat: 51.7592, lng: 19.4560 },
 
-  { name: 'Województwo Małopolskie', lat: 50.0647, lng: 19.9450 },
+  // Małopolskie
+  { name: 'Województwo Małopolskie', lat: 49.9, lng: 20.0 },
   { name: 'STOLICA: Kraków', lat: 50.0647, lng: 19.9450 },
 
-  { name: 'Województwo Mazowieckie', lat: 52.2297, lng: 21.0122 },
+  // Mazowieckie
+  { name: 'Województwo Mazowieckie', lat: 52.5, lng: 21.0 },
   { name: 'STOLICA: Warszawa', lat: 52.2297, lng: 21.0122 },
 
-  { name: 'Województwo Opolskie', lat: 50.6751, lng: 17.9213 },
+  // Opolskie
+  { name: 'Województwo Opolskie', lat: 50.7, lng: 17.5 },
   { name: 'STOLICA: Opole', lat: 50.6751, lng: 17.9213 },
 
-  { name: 'Województwo Podkarpackie', lat: 50.0412, lng: 21.9991 },
+  // Podkarpackie
+  { name: 'Województwo Podkarpackie', lat: 49.9, lng: 22.0 },
   { name: 'STOLICA: Rzeszów', lat: 50.0412, lng: 21.9991 },
 
-  { name: 'Województwo Podlaskie', lat: 53.1325, lng: 23.1688 },
+  // Podlaskie
+  { name: 'Województwo Podlaskie', lat: 53.0, lng: 23.0 },
   { name: 'STOLICA: Białystok', lat: 53.1325, lng: 23.1688 },
 
-  { name: 'Województwo Pomorskie', lat: 54.3520, lng: 18.6466 },
+  // Pomorskie
+  { name: 'Województwo Pomorskie', lat: 54.2, lng: 18.5 },
   { name: 'STOLICA: Gdańsk', lat: 54.3520, lng: 18.6466 },
 
-  { name: 'Województwo Śląskie', lat: 50.2649, lng: 19.0238 },
+  // Śląskie
+  { name: 'Województwo Śląskie', lat: 50.3, lng: 19.0 },
   { name: 'STOLICA: Katowice', lat: 50.2649, lng: 19.0238 },
 
-  { name: 'Województwo Świętokrzyskie', lat: 50.8661, lng: 20.6286 },
+  // Świętokrzyskie
+  { name: 'Województwo Świętokrzyskie', lat: 50.8, lng: 20.6 },
   { name: 'STOLICA: Kielce', lat: 50.8661, lng: 20.6286 },
 
-  { name: 'Województwo Warmińsko-Mazurskie', lat: 53.7784, lng: 20.4801 },
+  // Warmińsko-Mazurskie
+  { name: 'Województwo Warmińsko-Mazurskie', lat: 53.8, lng: 20.5 },
   { name: 'STOLICA: Olsztyn', lat: 53.7784, lng: 20.4801 },
 
-  { name: 'Województwo Wielkopolskie', lat: 52.4064, lng: 16.9252 },
+  // Wielkopolskie
+  { name: 'Województwo Wielkopolskie', lat: 52.2, lng: 17.0 },
   { name: 'STOLICA: Poznań', lat: 52.4064, lng: 16.9252 },
 
-  { name: 'Województwo Zachodniopomorskie', lat: 53.4285, lng: 14.5528 },
+  // Zachodniopomorskie
+  { name: 'Województwo Zachodniopomorskie', lat: 53.5, lng: 15.0 },
   { name: 'STOLICA: Szczecin', lat: 53.4285, lng: 14.5528 }
 ];
+
 
 
 
