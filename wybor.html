@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Konturówka + [Wybór Nauki]</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background: linear-gradient(140deg, #f1f5f9, #e2e8f0 45%, #dbeafe);
+        color: #111827;
+      }
+
+      .page {
+        display: flex;
+        justify-content: center;
+        padding: 36px 16px 48px;
+      }
+
+      .panel {
+        width: min(1100px, 100%);
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+        padding: 24px;
+      }
+
+      header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      header a {
+        color: #2563eb;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .card {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        background: #f8fafc;
+      }
+
+      .card h2 {
+        font-size: 16px;
+        margin: 0 0 12px;
+      }
+
+      .search {
+        display: flex;
+        gap: 8px;
+      }
+
+      .search input {
+        flex: 1;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+
+      .search button {
+        border: 1px solid #2563eb;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .results,
+      .selected {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0;
+        max-height: 360px;
+        overflow: auto;
+        display: grid;
+        gap: 8px;
+      }
+
+      .results li,
+      .selected li {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: #6b7280;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .actions button,
+      .actions a {
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .primary {
+        background: #16a34a;
+        color: #fff;
+        border: 1px solid #16a34a;
+      }
+
+      .secondary {
+        background: #fff;
+        color: #111827;
+        border: 1px solid #d1d5db;
+      }
+
+      .danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #4b5563;
+      }
+
+      .badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #1f2937;
+        margin-left: 6px;
+      }
+
+      .row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="panel">
+        <header>
+          <h1>Konturówka + — wybór nauki (POI z baz online)</h1>
+          <a href="menu.html">Powrót do menu</a>
+        </header>
+
+        <div class="grid">
+          <div class="card">
+            <h2>Wyszukiwarka miejsc</h2>
+            <div class="search">
+              <input id="searchInput" type="text" placeholder="Szukaj np. Kopiec Kościuszki, Mount Everest" />
+              <button id="searchBtn">Szukaj</button>
+            </div>
+            <div class="hint">Źródła: OpenStreetMap (Overpass) + Wikidata.</div>
+            <div class="hint" id="protocolHint"></div>
+            <div class="actions" style="margin-top:10px;">
+              <button id="testBtn" class="secondary">Test połączenia</button>
+            </div>
+            <ul id="results" class="results"></ul>
+          </div>
+
+          <div class="card">
+            <h2>Wybrane do nauki <span id="countBadge" class="badge">0</span></h2>
+            <ul id="selected" class="selected"></ul>
+            <div class="actions">
+              <button id="saveBtn" class="primary">Zapisz do cookies</button>
+              <button id="clearBtn" class="danger">Wyczyść wybór</button>
+              <a id="learnBtn" class="secondary" href="POI.html">Przejdź do nauki</a>
+            </div>
+            <div id="status" class="status">Brak zapisanych elementów.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const COOKIE_NAME = 'kplus_poi_selection';
+      const MAX_COOKIE_CHARS = 3800;
+
+      const searchInput = document.getElementById('searchInput');
+      const searchBtn = document.getElementById('searchBtn');
+      const resultsEl = document.getElementById('results');
+      const selectedEl = document.getElementById('selected');
+      const statusEl = document.getElementById('status');
+      const countBadge = document.getElementById('countBadge');
+      const saveBtn = document.getElementById('saveBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const protocolHint = document.getElementById('protocolHint');
+      const testBtn = document.getElementById('testBtn');
+
+      let selected = [];
+      let debounceTimer = null;
+
+      if (protocolHint) {
+        if (window.location.protocol === 'file:') {
+          protocolHint.textContent = 'Uwaga: tryb file:// blokuje zapytania do API. Uruchom przez http://localhost.';
+        } else {
+          protocolHint.textContent = 'OK: strona uruchomiona przez HTTP/HTTPS.';
+        }
+      }
+
+      function setCookie(name, value, days) {
+        const maxAge = days * 24 * 60 * 60;
+        document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+      }
+
+      function getCookie(name) {
+        const cookies = document.cookie.split(';').map(c => c.trim());
+        for (const c of cookies) {
+          if (c.startsWith(name + '=')) {
+            return decodeURIComponent(c.substring(name.length + 1));
+          }
+        }
+        return null;
+      }
+
+      function loadSelectedFromCookie() {
+        const raw = getCookie(COOKIE_NAME);
+        if (!raw) return [];
+        try {
+          const data = JSON.parse(raw);
+          if (Array.isArray(data)) return data;
+        } catch (_) {}
+        return [];
+      }
+
+      function updateStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      function renderSelected() {
+        selectedEl.innerHTML = '';
+        countBadge.textContent = String(selected.length);
+        if (selected.length === 0) {
+          updateStatus('Brak zapisanych elementów.');
+          return;
+        }
+        updateStatus(`Wybrane elementy: ${selected.length}.`);
+        for (const item of selected) {
+          const li = document.createElement('li');
+          const info = document.createElement('div');
+          info.className = 'row';
+          info.innerHTML = `
+            <strong>${item.n}</strong>
+            <span class="meta">${item.c || 'inne'} • ${item.s}</span>
+          `;
+          const btn = document.createElement('button');
+          btn.className = 'secondary';
+          btn.textContent = 'Usuń';
+          btn.addEventListener('click', () => {
+            selected = selected.filter(x => x.id !== item.id);
+            renderSelected();
+          });
+          li.append(info, btn);
+          selectedEl.appendChild(li);
+        }
+      }
+
+      function renderResults(items) {
+        resultsEl.innerHTML = '';
+        if (items.length === 0) {
+          const li = document.createElement('li');
+          li.textContent = 'Brak wyników.';
+          resultsEl.appendChild(li);
+          return;
+        }
+        for (const item of items) {
+          const li = document.createElement('li');
+          const info = document.createElement('div');
+          info.className = 'row';
+          info.innerHTML = `
+            <strong>${item.n}</strong>
+            <span class="meta">${item.c || 'inne'} • ${item.s}</span>
+          `;
+          const btn = document.createElement('button');
+          btn.className = 'secondary';
+          btn.textContent = selected.some(x => x.id === item.id) ? 'Dodane' : 'Dodaj';
+          btn.disabled = selected.some(x => x.id === item.id);
+          btn.addEventListener('click', () => {
+            if (selected.some(x => x.id === item.id)) return;
+            const next = [...selected, item];
+            const raw = JSON.stringify(next);
+            if (raw.length > MAX_COOKIE_CHARS) {
+              updateStatus('Za dużo danych do cookies. Usuń część wyboru.');
+              return;
+            }
+            selected = next;
+            renderSelected();
+            renderResults(items);
+          });
+          li.append(info, btn);
+          resultsEl.appendChild(li);
+        }
+      }
+
+      function escapeOverpass(s) {
+        return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      }
+
+      async function searchOverpass(query) {
+        const q = escapeOverpass(query);
+        const bodyPrimary = `[out:json][timeout:25];(
+          nwr["name"~"${q}",i]["tourism"];
+          nwr["name"~"${q}",i]["historic"];
+          nwr["name"~"${q}",i]["natural"];
+          nwr["name"~"${q}",i]["leisure"];
+          nwr["name"~"${q}",i]["amenity"];
+          nwr["name"~"${q}",i]["man_made"];
+        );out center 50;`;
+        const bodyFallback = `[out:json][timeout:25];
+          nwr["name"~"${q}",i];
+        out center 50;`;
+
+        const endpoints = [
+          'https://overpass-api.de/api/interpreter',
+          'https://overpass.kumi.systems/api/interpreter',
+          'https://overpass.nchc.org.tw/api/interpreter'
+        ];
+
+        let lastError = null;
+        for (const endpoint of endpoints) {
+          try {
+            const urlPrimary = `${endpoint}?data=${encodeURIComponent(bodyPrimary)}`;
+            const resPrimary = await fetch(urlPrimary, { headers: { 'Accept': 'application/json' } });
+            if (!resPrimary.ok) throw new Error('Overpass error');
+            const dataPrimary = await resPrimary.json();
+            const primaryItems = (dataPrimary.elements || [])
+              .map(el => {
+                const lat = el.lat ?? el.center?.lat;
+                const lon = el.lon ?? el.center?.lon;
+                if (!Number.isFinite(lat) || !Number.isFinite(lon) || !el.tags?.name) return null;
+                const tags = el.tags || {};
+                const category = tags.tourism || tags.historic || tags.natural || tags.leisure || tags.amenity || tags.man_made || 'inne';
+                return {
+                  id: `osm-${el.type}-${el.id}`,
+                  n: tags.name,
+                  a: Number(lat.toFixed(6)),
+                  o: Number(lon.toFixed(6)),
+                  c: category,
+                  s: 'OSM'
+                };
+              })
+              .filter(Boolean);
+            if (primaryItems.length > 0) return primaryItems;
+
+            const urlFallback = `${endpoint}?data=${encodeURIComponent(bodyFallback)}`;
+            const resFallback = await fetch(urlFallback, { headers: { 'Accept': 'application/json' } });
+            if (!resFallback.ok) throw new Error('Overpass error');
+            const dataFallback = await resFallback.json();
+            if (!dataFallback.elements) return [];
+            return dataFallback.elements
+          .map(el => {
+            const lat = el.lat ?? el.center?.lat;
+            const lon = el.lon ?? el.center?.lon;
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || !el.tags?.name) return null;
+            const tags = el.tags || {};
+            const category = tags.tourism || tags.historic || tags.natural || tags.leisure || tags.amenity || tags.man_made || 'inne';
+            return {
+              id: `osm-${el.type}-${el.id}`,
+              n: tags.name,
+              a: Number(lat.toFixed(6)),
+              o: Number(lon.toFixed(6)),
+              c: category,
+              s: 'OSM'
+            };
+          })
+          .filter(Boolean);
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError || new Error('Overpass error');
+      }
+
+      async function searchWikidata(query, lang) {
+        const q = query.trim();
+        const language = lang || 'pl';
+        const sparql = `SELECT ?item ?itemLabel ?coord ?typeLabel WHERE {
+          SERVICE wikibase:mwapi {
+            bd:serviceParam wikibase:api "EntitySearch";
+            bd:serviceParam wikibase:endpoint "www.wikidata.org";
+            bd:serviceParam mwapi:search "${q.replace(/"/g, '')}";
+            bd:serviceParam mwapi:language "${language}";
+            bd:serviceParam mwapi:limit "25".
+            ?item wikibase:apiOutputItem mwapi:item.
+          }
+          ?item wdt:P625 ?coord.
+          OPTIONAL { ?item wdt:P31 ?type. }
+          SERVICE wikibase:label { bd:serviceParam wikibase:language "pl,en". }
+        }`;
+        const url = `https://query.wikidata.org/sparql?format=json&origin=*&query=${encodeURIComponent(sparql)}`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/sparql-results+json' } });
+        if (!res.ok) throw new Error('Wikidata error');
+        const data = await res.json();
+        const bindings = data.results?.bindings || [];
+        return bindings.map(b => {
+          const label = b.itemLabel?.value;
+          const coord = b.coord?.value || '';
+          const typeLabel = b.typeLabel?.value || 'inne';
+          const match = coord.match(/Point\(([-\d\.]+) ([-\d\.]+)\)/);
+          if (!label || !match) return null;
+          const lon = Number(parseFloat(match[1]).toFixed(6));
+          const lat = Number(parseFloat(match[2]).toFixed(6));
+          const qid = b.item?.value?.split('/').pop();
+          return {
+            id: `wd-${qid}`,
+            n: label,
+            a: lat,
+            o: lon,
+            c: typeLabel,
+            s: 'Wikidata'
+          };
+        }).filter(Boolean);
+      }
+
+      function dedupe(items) {
+        const map = new Map();
+        for (const item of items) {
+          const key = `${item.n}|${item.a}|${item.o}`.toLowerCase();
+          if (!map.has(key)) map.set(key, item);
+        }
+        return Array.from(map.values());
+      }
+
+      async function runSearch() {
+        const q = searchInput.value.trim();
+        if (q.length < 2) {
+          renderResults([]);
+          updateStatus('Wpisz co najmniej 2 znaki.');
+          return;
+        }
+        updateStatus('Szukam w bazach...');
+        try {
+          const results = await Promise.allSettled([
+            searchOverpass(q),
+            searchWikidata(q, 'pl')
+          ]);
+          let osmOk = results[0].status === 'fulfilled';
+          let wdOk = results[1].status === 'fulfilled';
+          let osm = osmOk ? results[0].value : [];
+          let wd = wdOk ? results[1].value : [];
+
+          if (wdOk && wd.length === 0) {
+            const wdEn = await Promise.allSettled([searchWikidata(q, 'en')]);
+            if (wdEn[0].status === 'fulfilled') {
+              wd = wdEn[0].value;
+            }
+          }
+
+          const combined = dedupe([...osm, ...wd]);
+          renderResults(combined);
+
+          if (combined.length === 0) {
+            if (!osmOk && !wdOk) {
+              updateStatus('Błąd połączenia z bazami. Spróbuj ponownie.');
+            } else {
+              updateStatus(`Brak wyników. OSM: ${osm.length}, Wikidata: ${wd.length}.`);
+            }
+          } else {
+            updateStatus(`Znaleziono: ${combined.length}. OSM: ${osm.length}, Wikidata: ${wd.length}.`);
+          }
+        } catch (_) {
+          renderResults([]);
+          updateStatus('Błąd wyszukiwania. Spróbuj ponownie.');
+        }
+      }
+
+      async function testConnections() {
+        updateStatus('Test połączenia...');
+        try {
+          const [osm, wd] = await Promise.allSettled([
+            searchOverpass('Mount Everest'),
+            searchWikidata('Mount Everest')
+          ]);
+          const osmOk = osm.status === 'fulfilled';
+          const wdOk = wd.status === 'fulfilled';
+          const parts = [];
+          parts.push(`OSM: ${osmOk ? 'OK' : 'Błąd'}`);
+          parts.push(`Wikidata: ${wdOk ? 'OK' : 'Błąd'}`);
+          updateStatus(`Test: ${parts.join(' • ')}`);
+        } catch (_) {
+          updateStatus('Test nieudany.');
+        }
+      }
+
+      searchBtn.addEventListener('click', runSearch);
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runSearch, 600);
+      });
+      testBtn.addEventListener('click', testConnections);
+
+      saveBtn.addEventListener('click', () => {
+        const raw = JSON.stringify(selected);
+        if (raw.length > MAX_COOKIE_CHARS) {
+          updateStatus('Za dużo danych do cookies. Usuń część wyboru.');
+          return;
+        }
+        setCookie(COOKIE_NAME, raw, 365);
+        updateStatus('Zapisano do cookies.');
+      });
+
+      clearBtn.addEventListener('click', () => {
+        selected = [];
+        setCookie(COOKIE_NAME, '[]', 365);
+        renderSelected();
+      });
+
+      selected = loadSelectedFromCookie();
+      renderSelected();
+    </script>
+  </body>
+</html>
